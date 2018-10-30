@@ -1,0 +1,56 @@
+Weather station using moteino
+
+Weather(1) was a pic, communcating on homenet. It managed a tipping bucket rain gauge and a temperature sensor.  16f84 or 16f628?  As at 2018, the HW was 16f628 with a Dallas DS1620 for temperature. In projects/older/rain. Looks to date from 2007. In assembler.
+It ran up in nowendoc for a year or two... but I regularly destroyed rs485 drivers on the CC connection for Homenet.  After about the 5th was replaced.. I found the weather1 board was intermittent.  Worked sometimes, and I'm not sure I still have a PIC programmer or desire to keep fixing the wired network. A lightning strike in Jan 2018 on the oak tree convinced me wired sensor networks was a bad idea.   
+
+Weather2 was started in Dec 2017 as a replacement for weather1.  Its teensy 2.0 based, an ATMEGA32U4 8 bit AVR 16 MHz, and written in c. It seems to be a 5v part.  Its got a USBHID interface.
+It features interfaces to
+Davis tipping bucket rain gauge
+Davis wind vane (wind speed and direction)
+BMP280 Bosch temperature and pressure sensor
+SHT31-D temperature and humidity sensor
+pretty much all my own code.  Interrupts are used for wind speed and rain bucket, with a timer used to debounce the rain int.
+What weather2 lacks is a decent comms interface....
+
+So I can either port the weather2 code to a moteino, or use a moteino as a radio for the teensy. The teensy is USBHID rather than 2 wire serial so the radio is slightly less attractive. Except I seem to have an esp8266 already connected..
+
+Getting low power for the gadget is a bit attractive.. how does that gel with interrupt response?
+Or at least low enough power to be solar powered.
+
+The teensy draws 20mA at 12v. Has an inline switcher to 3.6V.
+The serial lines to the esp8266 .. hmm, arnt any. It was just running of fthe 3v3.   Current is down to 13mA without the esp8266. (from 12V).
+9ma  just into the switchmode reg, so its idling at 100mw.
+Setting the psu to 3v3 and running the teensy directly.. 12.6mA @ 3v3
+
+The moteino apparently will do 8ma idling, and much better in low power sleep if I can make it wake on pin change interrupt.
+
+So my options could be ~20mA @ 3v3 for motino + teensy, vs lets be optimistic and say 1mA for the
+teensy only.
+
+A 6V solar panel I got for these produces 7V and 50mA pointing at the sun behind some cloud (can see where the sun is, not heavy cloud) on a gray winters day in light showers. Thats not going to run 20ma 24 hours a day. Should run 1mA happily. So worth trying to port off teensy too straight moteino.
+
+Seems I need to run in sleep mode most of the time.
+So either need some HW assistance to notice input transitions and store them till the moteino aways from a short sleep, or have the interrupt wake it directly.
+
+https://lowpowerlab.com/forum/low-power-techniques/wake-moteino-mega-using-pin-change-interrupt/
+suggests external interrupts should work.
+
+Lets do an IO count..
+I have
+2 x I2C things. (SHT31-D temperature and humidity sensor and
+  BMP280 Bosch temperature and pressure sensor
+
+1 x int Davis tipping bucket rain gauge
+1 x int, 1 x analog.     Davis wind vane (wind speed and direction)
+
+so pin count isn't bad.
+Could probably debounce the tipping bucket with a little foreground assistance too. 
+
+seems ..
+I2c scl likes to be on D0
+I2C sda likes to be on PD1
+radio is on D2, D11,12,13
+pins 2 + 3 are interrupts. Radio uses one of these.
+pin change interrupts are probably supported in sleep mode. 
+
+
