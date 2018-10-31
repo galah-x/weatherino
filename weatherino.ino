@@ -1,6 +1,9 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2018-10-30 20:34:12 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2018-10-31 15:52:43 john"';
+
+// $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
+
 
 
 #include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
@@ -44,7 +47,7 @@
 
 // speed up for testing
 period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowPower library (LowPower.h)
-#define SLEEP_MULTIPLIER 2
+#define SLEEP_MULTIPLIER 5
 
 //*********************************************************************************************
 #ifdef __AVR_ATmega1284P__
@@ -122,6 +125,18 @@ Adafruit_SHT31 sht31 = Adafruit_SHT31();
 unsigned int rain_raw;
 unsigned long wind_raw;
 
+long unsigned current_msec;
+long unsigned last_gust_msec;
+unsigned int gust_period;
+unsigned int used_gust_period;
+float biggest_gust;
+float this_gust;
+unsigned int this_gust_count;
+long unsigned this_wind_count;
+long unsigned last_wind_count;
+  
+
+
 // #define SERIAL_EN
 
 
@@ -182,6 +197,10 @@ void setup() {
 
   rain_raw = 0;
   wind_raw = 0;
+
+  last_gust_msec = millis();
+  biggest_gust = 0;;
+  last_wind_count = 0;
 }
 
 /************************** MAIN ***************/
@@ -195,28 +214,38 @@ void setup() {
 //Adafruit_BMP280 bme(BMP_CS); // hardware SPI
 //Adafruit_BMP280 bme(BMP_CS, BMP_MOSI, BMP_MISO,  BMP_SCK);
   
-
+#define min_gust_period 8400
 
   
 void loop() {
-  int pseudofloat;
+  
 
+  // gust update
+  current_msec = millis();
+  gust_period = current_msec - last_gust_msec;
+  if (gust_period >= min_gust_period)
+    {
+      used_gust_period = gust_period;
+      this_wind_count = get_wind_count();
+      this_gust_count = this_wind_count - last_wind_count;
+      last_wind_count = this_wind_count;
+      last_gust_msec = current_msec;
+      
+      // gust count is max revs in 8.388 seconds
+      // where v[mph] = 2.25 * count / T
+      // or v[kph]    = 2.25 * 1.609 * count / T
+      // or v[kph]    = 3.62 * count / T
+      this_gust = 3620.0 * this_gust_count / gust_period; 
+      if (this_gust > biggest_gust)
+	{
+	  biggest_gust = this_gust;
+	}
+    }
+  
   if (sleepmul == 0) {
   
-#ifdef SERIAL_EN
-    Serial.print("Temperature = ");
-    Serial.print(bme.readTemperature());
-    Serial.println(" *C");
-    
-    Serial.print("Pressure = ");
-    Serial.print(bme.readPressure());
-    Serial.println(" Pa");
-#endif
-    //    Altitude ?
     //    Serial.print("Approx altitude = ");
     //    Serial.print(bme.readAltitude(1013.25)); // this should be adjusted to your local forcase
-    //    Serial.println(" m");
-    //    Serial.println();
 
 
     // *************** bmp280 temp and pressure **************
@@ -266,13 +295,24 @@ void loop() {
     temp = analogRead(WIND_DRN_CH);
     dirn2str(temp, buff2);  // update drnstr
    
-    sprintf(buff, "%02x WindDrn=%s %u°C", NODEID, buff2, temp * 36 / 103);
+    sprintf(buff, "%02x WindDrn=%s %u°", NODEID, buff2, temp * 36 / 103);
     sendLen = strlen(buff);
     radio.sendWithRetry(GATEWAYID, buff, sendLen);
 
-    sprintf(buff, "%02x millis=%lu ", NODEID, millis());
+    // **************** wind count *****************
+    dtostrf(biggest_gust, 5, 1, buff2);
+   
+    sprintf(buff, "%02x Wind gust=%s Kph dist=%lu", NODEID, buff2, get_wind_count());
     sendLen = strlen(buff);
     radio.sendWithRetry(GATEWAYID, buff, sendLen);
+    sprintf(buff, "%02x gust_period=%u gust_count=%u", NODEID, used_gust_period, this_gust_count);
+    sendLen = strlen(buff);
+    radio.sendWithRetry(GATEWAYID, buff, sendLen);
+    biggest_gust=0;
+    
+//    sprintf(buff, "%02x millis=%lu ", NODEID, millis());
+//    sendLen = strlen(buff);
+//    radio.sendWithRetry(GATEWAYID, buff, sendLen);
 
     
     
@@ -353,9 +393,21 @@ void pciSetup(byte pin)
 
 // Use one Routine to handle each group
 
-// windint
+// wind int, which seems not to need a debounce
 ISR (PCINT0_vect) // handle pin change interrupt for D8 to D13 here
-{    
+{
+  static byte lastWindLvl = 0;
+  
+  // read the port, once.
+  byte WindLvl = digitalRead(WindInt);
+  
+  // negedge only
+  if ((lastWindLvl == HIGH) && (WindLvl == LOW))
+    {
+      wind_raw++;
+    }  
+  lastWindLvl = WindLvl;  // save for next time 
+  
   digitalWrite(13,digitalRead(WindInt));
 }
 
