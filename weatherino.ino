@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2018-10-31 15:52:43 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2018-11-20 19:41:06 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -24,7 +24,7 @@
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
 #define NODEID        3   //unique for each node on same network
-#define GATEWAYID     1   //node Id of the receiver we are sending data to
+#define GATEWAYID     1  //node Id of the receiver we are sending data to
 #define NETWORKID     100  //the same on all nodes that talk to each other including this node and the gateway
 #define FREQUENCY     RF69_915MHZ //others: RF69_433MHZ, RF69_868MHZ (this must match the RFM69 freq you have on your Moteino)
 // #define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!
@@ -47,7 +47,8 @@
 
 // speed up for testing
 period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowPower library (LowPower.h)
-#define SLEEP_MULTIPLIER 5
+#define SLEEP_MULTIPLIER 300
+// #define SLEEP_MULTIPLIER 3
 
 //*********************************************************************************************
 #ifdef __AVR_ATmega1284P__
@@ -83,6 +84,35 @@ period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowP
 // timers used 
 
 
+// calibration coefficient for wind drn. 0 .. 1023
+
+// taped windvane.
+// compass from in front indicated it was at 200 degrees
+// subtracting 180 implies it was pointed at 20 degrees magnetic
+// local declination at -31.45 degrees 151.62 elevation 950 is
+// http://www.ga.gov.au/oracle/geomag/agrfform.jsp
+// Requested: Latitude -31o 27' 00", Longitude 151o 37' 00", Elevation .95 km, Date 2015/01/1 
+// Calculated: Latitude -31.4500o, Longitude +151.6167o, Elevation 0.95 km, Epoch 2015.0000
+// Magnetic Field Components
+// D = 11.807 deg
+
+// from wikipedia Declination Magnetic
+// D, the magnetic declination (sometimes called the magnetic variation), is the angle between the horizontal
+// component of the magnetic field and true north. It is positive when the compass points east of true north,
+// and negative when the compass points west of true north.
+//
+// so compass 20 degrees magnetic is 20-11.8 = 8 degrees east of north 
+// so given the adc range is 1024 and that represents 360 degrees, thats an adc count of 12.2 * 1024/360 = 35  
+// the system reported [181120192600] 03 WindDrn=S 180°
+// or an adc count of 180/360 * 1024 = 512
+// so I need a cal of 35 - 512 = -477  or 1024 - 477 = 547
+
+// #define drn_cal 0
+#define drn_cal 547
+
+
+
+
 
 #ifdef SERIAL_EN
   #define SERIAL_BAUD   19200
@@ -116,7 +146,7 @@ char buff2[10];    // for float conversion
 // float readDistance(byte samples=1);  //take 1 samples by default
 RFM69 radio;
 
-int sleepmul;
+int outerloop_times;
 
 
 Adafruit_BMP280 bme; // I2C
@@ -141,10 +171,10 @@ long unsigned last_wind_count;
 
 
 void setup() {
-    noInterrupts();
-    CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
-    CLKPR = _BV(CLKPS0);  // divide frequency by 2
-    interrupts();
+  // noInterrupts();
+  // CLKPR = _BV(CLKPCE);  // enable change of the clock prescaler
+  // CLKPR = _BV(CLKPS0);  // divide frequency by 2
+  // interrupts();
   radio.initialize(FREQUENCY,NODEID,NETWORKID);
 #ifdef IS_RFM69HW_HCW
   radio.setHighPower(); //must include this only for RFM69HW/HCW!
@@ -162,9 +192,10 @@ void setup() {
   
   sprintf(buff, "%02x weatherino", NODEID );  
   sendLen = strlen(buff);
+  //  radio.sendWithRetry(GATEWAYID, buff, sendLen);
   radio.sendWithRetry(GATEWAYID, buff, sendLen);
   
-  sleepmul = 0;
+  outerloop_times = 0;
   
   if (!bme.begin())
     {  
@@ -242,7 +273,7 @@ void loop() {
 	}
     }
   
-  if (sleepmul == 0) {
+  if (outerloop_times == 0) {
   
     //    Serial.print("Approx altitude = ");
     //    Serial.print(bme.readAltitude(1013.25)); // this should be adjusted to your local forcase
@@ -291,11 +322,21 @@ void loop() {
     
     // *************** wind direction **************
 
-    int temp;
-    temp = analogRead(WIND_DRN_CH);
-    dirn2str(temp, buff2);  // update drnstr
-   
-    sprintf(buff, "%02x WindDrn=%s %u°", NODEID, buff2, temp * 36 / 103);
+    int drn;
+    unsigned int drn_temp;
+    drn = analogRead(WIND_DRN_CH);
+    drn = drn + drn_cal
+;
+    if (drn > 1023)
+      { 
+	drn = drn - 1023;
+      }
+
+    dirn2str(drn, buff2);  // update drnstr
+    
+    drn_temp = 36 * drn ;
+    
+    sprintf(buff, "%02x WindDrn=%s %u°", NODEID, buff2, drn_temp / 103);
     sendLen = strlen(buff);
     radio.sendWithRetry(GATEWAYID, buff, sendLen);
 
@@ -305,9 +346,9 @@ void loop() {
     sprintf(buff, "%02x Wind gust=%s Kph dist=%lu", NODEID, buff2, get_wind_count());
     sendLen = strlen(buff);
     radio.sendWithRetry(GATEWAYID, buff, sendLen);
-    sprintf(buff, "%02x gust_period=%u gust_count=%u", NODEID, used_gust_period, this_gust_count);
-    sendLen = strlen(buff);
-    radio.sendWithRetry(GATEWAYID, buff, sendLen);
+    // sprintf(buff, "%02x gust_period=%u gust_count=%u", NODEID, used_gust_period, this_gust_count);
+    // sendLen = strlen(buff);
+    // radio.sendWithRetry(GATEWAYID, buff, sendLen);
     biggest_gust=0;
     
 //    sprintf(buff, "%02x millis=%lu ", NODEID, millis());
@@ -316,11 +357,11 @@ void loop() {
 
     
     
-    //    radio.sleep();
-    delay(2000);
-    sleepmul = SLEEP_MULTIPLIER;
+    radio.sleep();
+    //    delay(2000);
+    outerloop_times = SLEEP_MULTIPLIER;
   }
-  sleepmul--;
+  outerloop_times--;
   delay(2000);
   // LowPower.powerDown(sleepTime, ADC_OFF, BOD_OFF); //put microcontroller to sleep to save battery life
 }
