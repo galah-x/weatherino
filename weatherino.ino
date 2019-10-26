@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-03-23 16:31:32 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-26 14:03:55 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -13,7 +13,7 @@
 #include <RFM69_OTA.h>     // allow OTA reprogramming
 #include <LowPower.h>      //get library from: https://github.com/lowpowerlab/lowpower
                            //writeup here: http://www.rocketscream.com/blog/2011/07/04/lightweight-low-power-arduino-library/
-
+#include <math.h>          // atan
 
 
 
@@ -46,7 +46,9 @@
 
 // speed up for testing
 period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowPower library (LowPower.h)
-#define SLEEP_MULTIPLIER 300
+// #define SLEEP_MULTIPLIER 300
+
+
 // #define SLEEP_MULTIPLIER 3
 
 //*********************************************************************************************
@@ -135,17 +137,21 @@ byte sendLoops=0;
 #define BUFLEN 50
 char buff[BUFLEN]; //this is just an empty string used as a buffer to place the payload for the radio
 char buff2[10];    // for float conversion
+char buff3[10];    // for float conversion
 
 
 RFM69 radio;
 SPIFlash flash(FLASH_SS, 0xEF30); //EF30 for 4mbit  Windbond chip (W25X40CL)
 
-int windloop_times;
-int batteryloop_times;
+uint16_t windloop_times;
+const uint16_t WINDLOOP_TIMES=300;
+
+uint8_t batteryloop_times;
+const uint8_t BATTERYLOOP_TIMES=45;
 
 // due to a lightning strike, separating weatherino into 2 parts. This part is physically high
 // mounted near the rain and wind sensors. Want short wires due to high field strength.
-// Temperature sensors are 1.2m off the ground. If I connect to them too I get long wires.
+// Temperature sensors are 1.2m off the ground. If I connect to both of them I get long wires.
 
 #define RAIN
 #define WIND
@@ -153,21 +159,38 @@ int batteryloop_times;
 
 // about 4 times per day is 6 hrs or 360 minutes 
 // with 8 minute inner loop update
-#define BATTERYLOOP_TIMES 45
 
-unsigned int  rain_raw;
-unsigned long wind_raw;
 
-long unsigned current_msec;
-long unsigned last_gust_msec;
-unsigned int  gust_period;
-unsigned int  used_gust_period;
-float         biggest_gust;
-float         this_gust;
-unsigned int  this_gust_count;
-long unsigned this_wind_count;
-long unsigned last_wind_count;
-  
+uint16_t rain_raw;
+uint32_t wind_raw;
+
+uint32_t  current_msec;
+uint32_t  last_gust_msec;
+
+uint16_t  gust_period;
+const uint16_t min_gust_period =8400;
+
+uint16_t  used_gust_period;
+float     biggest_gust;
+uint16_t  this_gust_count;
+uint16_t  biggest_gust_count;
+uint32_t  this_wind_count;
+uint32_t  last_wind_count;
+
+// these variables are used to perform vector addition of wind per 8s gust period
+// to allow wind direction averaging.
+int32_t total_easting;
+int32_t total_northing;
+
+const uint8_t interp_points = 8;
+const uint8_t interp_shift = 5;
+const uint8_t interp_and = 31;
+// sin * 10k. used for first quadrant only.
+const uint16_t sin_points[interp_points+1] = { 0, 1951, 3827, 5556, 7071, 8315, 9239, 9808, 10000};
+const uint8_t sin_slope[interp_points] = {61, 59, 54, 47, 39, 29, 18, 6};
+
+
+
 
 
 void setup() {
@@ -210,8 +233,11 @@ void setup() {
 
   wind_raw = 0;
   last_gust_msec = millis();
-  biggest_gust = 0;;
+  biggest_gust_count = 0;;
   last_wind_count = 0;
+  total_easting = 0;
+  total_northing = 0;
+  
 #endif
 
 }
@@ -219,7 +245,6 @@ void setup() {
 /************************** MAIN ***************/
 
   
-#define min_gust_period 8400
 
   
 void loop() {
@@ -227,7 +252,13 @@ void loop() {
   int batt_adc;
   int ref_v;
   float batt_v;
-
+  
+  uint16_t drn;   // 0..1023 adc reading
+  uint16_t drn_temp;
+  int16_t this_sin;
+  int16_t this_cos;
+  float angle_degrees;
+  
   // gust update
   current_msec = millis();
   gust_period = current_msec - last_gust_msec;
@@ -238,15 +269,23 @@ void loop() {
       this_gust_count = this_wind_count - last_wind_count;
       last_wind_count = this_wind_count;
       last_gust_msec = current_msec;
-      
-      // gust count is max revs in 8.388 seconds
-      // where v[mph] = 2.25 * count / T
-      // or v[kph]    = 2.25 * 1.609 * count / T
-      // or v[kph]    = 3.62 * count / T
-      this_gust = 3620.0 * this_gust_count / gust_period; 
-      if (this_gust > biggest_gust)
+
+      // check the current wind direction for this period.
+      drn = analogRead(WIND_DRN_ADC_CH);
+      drn = drn + drn_cal;
+      if (drn > 1023)
+	{ 
+	  drn = drn - 1023;
+	}
+      this_sin = my_sin(drn); // these are signed integers in range -10,000 to 10,000. Representing wind angle.
+      this_cos = my_cos(drn);
+
+      total_easting +=  this_sin * this_gust_count;
+      total_northing += this_cos * this_gust_count;
+
+      if (this_gust_count > biggest_gust_count)
 	{
-	  biggest_gust = this_gust;
+	  biggest_gust_count = this_gust_count;
 	}
     }
   
@@ -264,31 +303,66 @@ void loop() {
     
     // *************** wind direction **************
 
-    int drn;
-    unsigned int drn_temp;
-    drn = analogRead(WIND_DRN_ADC_CH);
-    drn = drn + drn_cal
-;
-    if (drn > 1023)
-      { 
-	drn = drn - 1023;
+    // use total_northing + total_easting to calculate average angle
+    if (total_easting == 0)
+      {
+	if (total_northing >= 0)
+	  {
+	    drn = 0;
+	    angle_degrees = 0.0;
+	  }
+	else
+	  {
+	    drn = 512;
+	    angle_degrees = 180.0;
+	  }
       }
-
+    else
+      {
+	double angle = atan2((double) total_northing, (double) total_easting);
+	// returns angle in range -pi, pi)
+	if (angle < 0)
+	  {
+	    angle_degrees = (float) 360 - angle * ( 180.0 / 3.14159 );
+	  }
+	else
+	  {
+	    angle_degrees = (float) angle * ( 180.0 / 3.14159 );
+	  }
+	drn = (uint16_t ) angle_degrees * ( 512.0  / 180.0);
+      }
+    
+    uint32_t len_squared = total_northing * total_northing + total_easting * total_easting;
+    float    dist = ((float) sqrt ( (double) len_squared )) / 10000.0;
+    float    dist_kmh = dist * ( 3620.0 / gust_period ) ;
+    
+    
+    total_northing = 0;
+    total_easting = 0;
+    
     dirn2str(drn, buff2);  // update drnstr
     
-    drn_temp = 36 * drn ;
-    
-    sprintf(buff, "%02x WindDrn=%s %u°", NODEID, buff2, drn_temp / 103);
+    // drn_temp = 36 * drn ;
+    dtostrf(dist_kmh, 5, 1, buff3);
+
+    sprintf(buff, "%02x WindDrn=%s %u° spd=%s", NODEID, buff2, angle_degrees, buff3);
     radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
     delay(50);
     
     // **************** wind count *****************
+
+      // gust count is max revs in 8.388 seconds
+      // where v[mph] = 2.25 * count / T
+      // or v[kph]    = 2.25 * 1.609 * count / T
+      // or v[kph]    = 3.62 * count / T
+    biggest_gust = 3620.0 * biggest_gust_count / gust_period; 
+
     dtostrf(biggest_gust, 5, 1, buff2);
     sprintf(buff, "%02x Wind gust=%s Kph dist=%lu", NODEID, buff2, get_wind_count());
     radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-    biggest_gust=0;
+    biggest_gust_count=0;
 
-    windloop_times = SLEEP_MULTIPLIER;
+    windloop_times = WINDLOOP_TIMES;
 
     if (batteryloop_times == 0)
       {
@@ -302,21 +376,6 @@ void loop() {
 
 	// restore the Vdd adc reference after futzing with it as part of readVref
 	analogReference(DEFAULT);
-      
-	// reading the reference as a fraction of Vdd allows me to calculate vdd
-	// (1) Vdd = 1023 * v_ref / ref_v;
-	// check:  vdd = 1023 * 1.1 / 337 = 3.34
-	
-	// then reading the scaled external voltage as a fraction of Vdd allows me to calculate ext voltage
-	// (2) batt_v = (1000000 + 360000) / 1000000 * Vdd * (batt_adc / 1023);
-	// check: batt_adc = 928, batt_v = 4.12
-	// expanding
-	// (3) batt_v = (1000000 + 360000) / 1000000 * 1023 * (v_ref /ref_v) * (batt_adc / 1023);
-	// extracting constants
-	// (4) batt_v = v_ref * (1000000 + 360000) / 1000000 )  * batt_adc / ref_v );
-	// check 1.496 * 929 / 337 = 4.12
-	// actual 4.07
-	// implies ref is really 4.12 / 4.07 = 1.085
 	
 	batt_v = 1.476 * batt_adc / ref_v; 
 	dtostrf(batt_v, 5, 2, buff2);
@@ -329,9 +388,9 @@ void loop() {
     batteryloop_times--;
     
   }
+
   if (radio.receiveDone())
     CheckForWirelessHEX(radio, flash, true);
-  
   
   windloop_times--;
   delay(2000);
@@ -342,43 +401,127 @@ void loop() {
 
 // N NNE NE ENE   
 
+// void dirn2str(uint16_t adcval, char *drnstr)
+// {
+//   uint8_t heading ;
+//   heading = adcval >> 2; 
+//   if (heading <  16 )
+//     strcpy(drnstr,"N");
+//   else if (heading < 32)
+//     strcpy(drnstr, "NNE");
+//   else if (heading < 48)
+//     strcpy(drnstr, "NE");
+//   else if (heading < 64)
+//     strcpy(drnstr, "ENE");
+//   else if (heading < 80)
+//     strcpy(drnstr, "E");
+//   else if (heading < 96)
+//     strcpy(drnstr, "ESE");
+//   else if (heading < 112)
+//     strcpy(drnstr, "SE");
+//   else if (heading < 128)
+//     strcpy(drnstr, "SSE");
+//   else if (heading < 144)
+//     strcpy(drnstr, "S");
+//   else if (heading < 160)
+//     strcpy(drnstr, "SSW");
+//   else if (heading < 176)
+//     strcpy(drnstr, "SW");
+//   else if (heading < 192)
+//     strcpy(drnstr, "WSW");
+//   else if (heading < 208)
+//     strcpy(drnstr, "W");
+//   else if (heading < 224)
+//     strcpy(drnstr, "WNW");
+//   else if (heading < 240)
+//     strcpy(drnstr, "NW");
+//   else 
+//     strcpy(drnstr, "NNW");
+// }
+
+// try again with nested compares for better runtime
 void dirn2str(uint16_t adcval, char *drnstr)
 {
   uint8_t heading ;
   heading = adcval >> 2; 
-  if (heading <  16 )
-    strcpy(drnstr,"N");
-  else if (heading < 32)
-    strcpy(drnstr, "NNE");
-  else if (heading < 48)
-    strcpy(drnstr, "NE");
-  else if (heading < 64)
-    strcpy(drnstr, "ENE");
-  else if (heading < 80)
-    strcpy(drnstr, "E");
-  else if (heading < 96)
-    strcpy(drnstr, "ESE");
-  else if (heading < 112)
-    strcpy(drnstr, "SE");
-  else if (heading < 128)
-    strcpy(drnstr, "SSE");
-  else if (heading < 144)
-    strcpy(drnstr, "S");
-  else if (heading < 160)
-    strcpy(drnstr, "SSW");
-  else if (heading < 176)
-    strcpy(drnstr, "SW");
-  else if (heading < 192)
-    strcpy(drnstr, "WSW");
-  else if (heading < 208)
-    strcpy(drnstr, "W");
-  else if (heading < 224)
-    strcpy(drnstr, "WNW");
-  else if (heading < 240)
-    strcpy(drnstr, "NW");
-  else 
-    strcpy(drnstr, "NNW");
+
+  if (heading < 128)
+    {
+      if (heading < 64)
+	{
+	  if (heading < 32)
+	    { // 0 .. 31
+	      if (heading <  16 )
+		strcpy(drnstr,"N");
+	      else
+		strcpy(drnstr, "NNE");
+	    }
+	  else
+	    { // 32 .. 63
+	      if (heading < 48)
+		strcpy(drnstr, "NE");
+	      else
+		strcpy(drnstr, "ENE");
+	    }
+	}
+      else
+	{ // 64 .. 127
+	  if (heading < 96)
+	    {
+	      if (heading < 80)
+		strcpy(drnstr, "E");
+	      else
+		strcpy(drnstr, "ESE");
+	    }
+	  else
+	    {
+	      if (heading < 112)
+		strcpy(drnstr, "SE");
+	      else 
+		strcpy(drnstr, "SSE");
+	    }
+	}
+    } // 128 .. 255
+  else
+    {
+      if (heading < 192)
+	{ // 128 .. 191
+	  if (heading < 160)
+	    { // 128 .. 159
+	      if (heading < 144)
+		strcpy(drnstr, "S");
+	      else
+		strcpy(drnstr, "SSW");
+	    }
+	  else
+	    { // 160 .. 191
+	      if (heading < 176)
+		strcpy(drnstr, "SW");
+	      else 
+		strcpy(drnstr, "WSW");
+	    }
+	}
+      else
+	{ // 192.. 255
+	  if (heading < 224)
+	    { // 192 .. 223
+	      if (heading < 208)
+		strcpy(drnstr, "W");
+	      else 
+		strcpy(drnstr, "WNW");
+	    }
+	  else
+	    { // 224 .. 255
+	      if (heading < 240)
+		strcpy(drnstr, "NW");
+	      else 
+		strcpy(drnstr, "NNW");
+	    }
+	}
+    }
 }
+  
+
 
 
 // Install Pin change interrupt for a pin, can be called multiple times
@@ -491,4 +634,75 @@ int readVref() {
 }
 
  
- 
+// these routines are speed optimized and run at ~1/2 percent accuracy
+// input is 0 .. 1023 representing adc reading, north is 0 (or 1024) east is 256.
+// they return a signed integer in the range +10,000 to -10,000   ie sin*10k
+int  my_sin (uint16_t in)
+{
+  if (in > 512) {
+    if (in < 768)               // manage the 4 quadrants
+      {   // 513 ..  .. 767
+	return (0 - sin_q1(in - 512));
+      }
+    else
+      {
+	// 768 .. 1023
+	return (0 - sin_q1(1024 - in));
+      }
+  }
+  else
+    {
+      // <= 512
+      if (in <= 256)
+	{   // 0 .. 256
+	  return sin_q1(in);
+	}
+      else
+	{
+	  // 257 .. 512
+	  return sin_q1(512 - in);
+	}
+    }
+}
+    
+
+int my_cos (uint16_t in)
+{
+    if (in > 512) {                // manage the 4 quadrants
+	if (in < 768)
+	  {   // 513 ..  .. 767
+	    return (0 - sin_q1(768 - in));
+	}
+	else
+	{
+	  // 768 .. 1023
+	    return sin_q1(in - 768);
+	}
+    }
+    else
+    {
+      // <= 512
+	if (in <= 256)
+	  {   // 0 .. 256
+	    return sin_q1(256 - in);
+	}
+	else
+	{
+	  // 257 .. 512
+	  return (0 - sin_q1(in - 256));
+	}
+    }
+}
+    
+
+    
+uint16_t  sin_q1 (uint16_t in)
+{
+  // single quadrant sine calculation
+  // returns sin*10,000  for angles between 0 and 256, the adc representation of 0 .. 90 degrees.
+  // use 8 points lookup table and linear interpolation, which yields about 1/2 percent accuracy.
+  uint8_t in_lookup = in >> interp_shift; // spacing 32 between lookup points
+  uint8_t in_delta = in & interp_and;  // for calculating slope near lookup points
+  
+  return ((uint16_t)sin_points[in_lookup] + (uint16_t) (sin_slope[in_lookup] * in_delta));
+} 

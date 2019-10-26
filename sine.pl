@@ -26,6 +26,7 @@ use strict;
 
 # the purpose here is to check my algorithm for sin, cos
 
+my $scale = 8192;
 my @sin_points;
 my @sin_slope;
 my $interp = 8;
@@ -43,7 +44,7 @@ for (my $i = 0 ; $i <= 1023; $i++)
 {
     my $angle = $i/512*3.14159;
     
-    my $sinef=sin($angle)*10000;
+    my $sinef=sin($angle)*$scale;
     my $sine;
     if ($sinef >= 0) { $sine = int($sinef + 0.5);}
     else { $sine = int($sinef - 0.5);}
@@ -61,7 +62,7 @@ for (my $i = 0 ; $i <= 1023; $i++)
       $biggest_serr_point = $i;
     }
 
-    my $cosf=cos($angle)*10000;
+    my $cosf=cos($angle)*$scale;
     my $cosine;
     if ($cosf >= 0) { $cosine = int($cosf + 0.5);}
     else { $cosine = int($cosf - 0.5);}
@@ -92,7 +93,7 @@ sub init_lookup
     print "run table init with interp = $interp points\n";
     # int, scaled by 10,000
     for (my $i=0; $i<=$interp; $i++) {
-	$sin_points[$i] = int(10000*sin( ($i*$step)/512*3.14159265) + 0.5);
+	$sin_points[$i] = int($scale*sin( ($i*$step)/512*3.14159265) + 0.5);
 	printf "sin_points[%d] = %d\n", $i, $sin_points[$i];
     }
     for (my $i=0; $i<$interp; $i++) {
