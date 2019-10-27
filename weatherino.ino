@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-27 11:00:17 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-27 11:29:15 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -14,6 +14,7 @@
 #include <LowPower.h>      //get library from: https://github.com/lowpowerlab/lowpower
                            //writeup here: http://www.rocketscream.com/blog/2011/07/04/lightweight-low-power-arduino-library/
 #include <math.h>          // atan
+#include <avr/wdt.h> // watchdog
 
 
 
@@ -170,7 +171,6 @@ uint32_t  last_gust_msec;
 uint16_t  gust_period;
 const uint16_t min_gust_period =8400;
 
-uint16_t  used_gust_period;
 float     biggest_gust;
 uint16_t  this_gust_count;
 uint16_t  biggest_gust_count;
@@ -209,13 +209,13 @@ void setup() {
   Serial.println(F("BMP280 test"));
 #endif
   
-  sprintf(buff, "%02x weatherino 20190317", NODEID );  
+  sprintf(buff, "%02x weatherino 20191027", NODEID );  
   radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-
+  delay(200);
   flash.initialize();
   
-  windloop_times = 0;
-  batteryloop_times = 0;
+  windloop_times = WINDLOOP_TIMES;
+  batteryloop_times = 1;
     
   radio.sleep();
 
@@ -239,7 +239,7 @@ void setup() {
   total_northing = 0;
   
 #endif
-
+  wdt_enable(WDTO_8S);
 }
 
 /************************** MAIN ***************/
@@ -264,18 +264,17 @@ void loop() {
   gust_period = current_msec - last_gust_msec;
   if (gust_period >= min_gust_period)
     {
-      used_gust_period = gust_period;
+      last_gust_msec = current_msec;
       this_wind_count = get_wind_count();
       this_gust_count = this_wind_count - last_wind_count;
       last_wind_count = this_wind_count;
-      last_gust_msec = current_msec;
 
       // check the current wind direction for this period.
       drn = analogRead(WIND_DRN_ADC_CH);
       drn = drn + drn_cal;
       if (drn > 1023)
 	{ 
-	  drn = drn - 1023;
+	  drn = drn - 1024;
 	}
       this_sin = my_sin(drn); // these are signed integers in range -10,000 to 10,000. Representing wind angle.
       this_cos = my_cos(drn);
@@ -361,6 +360,7 @@ void loop() {
     sprintf(buff, "%02x Wind gust=%s Kph dist=%lu", NODEID, buff2, get_wind_count());
     radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
     biggest_gust_count=0;
+    delay(50);
 
     windloop_times = WINDLOOP_TIMES;
 
@@ -389,15 +389,15 @@ void loop() {
     
   }
 
-  
   windloop_times--;
 
   // speed up the poll rate
-  for ( i = 0; i < 10; i++)
+  for (i = 0; i < 10; i++)
     {
       if (radio.receiveDone())
 	CheckForWirelessHEX(radio, flash, true);
       delay(200);
+      wdt_reset();
     }
   // LowPower.powerDown(sleepTime, ADC_OFF, BOD_OFF); //put microcontroller to sleep to save battery life
 }
