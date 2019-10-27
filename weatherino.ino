@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-27 10:53:30 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-27 11:00:17 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -252,7 +252,7 @@ void loop() {
   int batt_adc;
   int ref_v;
   float batt_v;
-  
+  uint8_t i;  
   uint16_t drn;   // 0..1023 adc reading
   uint16_t drn_temp;
   int16_t this_sin;
@@ -393,7 +393,7 @@ void loop() {
   windloop_times--;
 
   // speed up the poll rate
-  for ((uint8_t) i = 0; i < 10; i++)
+  for ( i = 0; i < 10; i++)
     {
       if (radio.receiveDone())
 	CheckForWirelessHEX(radio, flash, true);
