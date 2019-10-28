@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-28 07:31:12 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-28 17:16:48 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -153,7 +153,7 @@ uint8_t batteryloop_times;
 const uint16_t GUST_AVERAGES=2;
 const uint8_t BATTERYLOOP_TIMES=5;
 #else
-const uint16_t WINDLOOP_TIMES=300;
+const uint16_t WINDLOOP_TIMES=60; // 8 m / 8.4s ~= 60 
 const uint8_t BATTERYLOOP_TIMES=45;
 #endif
 // due to a lightning strike, separating weatherino into 2 parts. This part is physically high
@@ -214,7 +214,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20191027", NODEID );  
+  sprintf(buff, "%02x weatherino 20191028", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
 #endif
