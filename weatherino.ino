@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2019-10-28 17:16:48 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-08-12 11:41:36 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -153,9 +153,14 @@ uint8_t batteryloop_times;
 const uint16_t GUST_AVERAGES=2;
 const uint8_t BATTERYLOOP_TIMES=5;
 #else
-const uint16_t WINDLOOP_TIMES=60; // 8 m / 8.4s ~= 60 
+const uint16_t GUST_AVERAGES=60; // 8 m / 8.4s ~= 60 
 const uint8_t BATTERYLOOP_TIMES=45;
 #endif
+
+// const float Kv = 5.70 * 3.3 / 1024; // yields 11.82 from 12.22
+const float Kv = (12.22 / 11.82 ) *  5.70 * 3.3 / 1024; // yields 11.82 from 12.22
+
+
 // due to a lightning strike, separating weatherino into 2 parts. This part is physically high
 // mounted near the rain and wind sensors. Want short wires due to high field strength.
 // Temperature sensors are 1.2m off the ground. If I connect to both of them I get long wires.
@@ -214,20 +219,21 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20191028", NODEID );  
+  sprintf(buff, "%02x weatherino 20210812", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
 #endif
 
 #ifdef RADIO    
   radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-  delay(200);
+  delay(500);
 #endif
   
   flash.initialize();
+  analogReference(DEFAULT);
   
   gust_averages = GUST_AVERAGES;
-  batteryloop_times = 1;
+  batteryloop_times = 0;
     
 #ifdef RADIO    
   radio.sleep();
@@ -264,7 +270,8 @@ void setup() {
 void loop() {
   
   int batt_adc;
-  int ref_v;
+  // int batt_adc_av;
+  //  int ref_v;
   float batt_v;
   uint8_t i;  
   uint16_t drn;   // 0..1023 adc reading
@@ -327,7 +334,12 @@ void loop() {
 	  
 	  // *************** rainfall  **************
 	  // rain count
-	  float r = get_rain_count() / 5.0;  // 0.2mm per blip on int pin
+	  // originally
+	  //	  float r = get_rain_count() / 5.0;  // 0.2mm per blip on int pin
+	  // lets rewrite as this, both to remove the division and to improve readability
+	  //	  float r = get_rain_count() * 0.20;  // 0.2mm per blip on int pin according to spec
+ 	  // now lets take into account the cal I did a while back. Its getting old.
+	  float r = get_rain_count() * 0.25;  // 0.25mm per blip measured
 	  dtostrf(r, 5, 1, buff2);
 	  
 	  sprintf(buff, "%02x rainfall=%smm", NODEID, buff2 );  
@@ -410,19 +422,35 @@ void loop() {
 	  
 	  if (batteryloop_times == 0)
 	    {
-	      delay(50);
+	      // delay(50);
 	      batt_adc =  analogRead(BATT_ADC_CH);
-	      ref_v =  readVref();
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc +=  analogRead(BATT_ADC_CH);
+	      batt_adc = batt_adc >> 3;
+	      // ref_v =  readVref();
 	      
 	      // shouldn't happen, but whatever.  Clearly gives an incorrect value.
-	      if (ref_v == 0)
-		ref_v = 1;
+	      // if (ref_v == 0)
+	      // ref_v = 1;
 	      
 	      // restore the Vdd adc reference after futzing with it as part of readVref
-	      analogReference(DEFAULT);
+	      //	      analogReference(DEFAULT);
 	      
-	      batt_v = 1.476 * batt_adc / ref_v; 
+	      //batt_v = 1.476 * batt_adc / ref_v; 
+	      batt_v = Kv * batt_adc; 
 	      dtostrf(batt_v, 5, 2, buff2);
+#ifdef DEBUG
+	      sprintf(buff, "%02x Batt_adc=%d", NODEID, batt_adc  );  
+	      Serial.println(buff);
+#endif
+	      //	      sprintf(buff, "%02x Batt_ref_v=%d", NODEID, ref_v  );  
+	      // Serial.println(buff);
+	      
 	      sprintf(buff, "%02x Batt=%sV", NODEID, buff2  );  
 	      
 #ifdef RADIO
@@ -675,6 +703,13 @@ unsigned int get_rain_count (void)
   sei();
   return (rain_count);
 }
+
+// Hmm. get_rain_count is a uint16_t
+// max 65k.
+// at 0.2mm per tip thats 13k1mm
+// at 1200mm / year thats 10.9 years to overflow.  And a drought or 2 will stretch that.
+// I don't think my batteries and solar charge system are ever going to let that be a problem.
+// At least not often in my lifetime!
 
 
 int readVref() {
