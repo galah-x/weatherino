@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-08-12 11:41:36 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-10 12:11:37 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -11,6 +11,10 @@
 #include <SPIFlash.h>      //get it here: https://www.github.com/lowpowerlab/spiflash
 #include <SPI.h>           //included with Arduino IDE install (www.arduino.cc)
 #include <RFM69_OTA.h>     // allow OTA reprogramming
+
+// try and get the idle function
+#define __AVR_ATmega328P__
+#define __AVR__
 #include <LowPower.h>      //get library from: https://github.com/lowpowerlab/lowpower
                            //writeup here: http://www.rocketscream.com/blog/2011/07/04/lightweight-low-power-arduino-library/
 // #include <math.h>          // atan
@@ -23,11 +27,12 @@
 //*********************************************************************************************
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
-#define NODEID        3   //unique for each node on same network
+// #define NODEID        3   //unique for each node on same network
+#define NODEID        0x23   //unique for each node on same network while doing current measurements
 #define GATEWAYID     1  //node Id of the receiver we are sending data to
 #define NETWORKID     100  //the same on all nodes that talk to each other including this node and the gateway
 #define FREQUENCY     RF69_915MHZ //others: RF69_433MHZ, RF69_868MHZ (this must match the RFM69 freq you have on your Moteino)
-#define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!
+// #define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!
 // #define USE_ENCRYP
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
 #define SENDLOOPS    80 //default:80 //if no message was sent for this many sleep loops/cycles, then force a send
@@ -41,16 +46,10 @@
 #define SLEEP_LONGER  SLEEP_4S
 #define SLEEP_LONGEST SLEEP_8S
 
-// period_t sleepTime = SLEEP_LONGEST; //period_t is an enum type defined in the LowPower library (LowPower.h)
-//#define SLEEP_MULTIPLIER 75
-// 10 minutes is 600 seconds / 8s sleep is 75
-
 // speed up for testing
 period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowPower library (LowPower.h)
-// #define SLEEP_MULTIPLIER 300
 
 
-// #define SLEEP_MULTIPLIER 3
 
 //*********************************************************************************************
 #ifdef __AVR_ATmega1284P__
@@ -118,7 +117,7 @@ period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowP
 #define WIND
 #define BATTERY
 // speed up poll rates
-// #define DEBUG
+#define DEBUG
 
 
 // #define drn_cal 0
@@ -219,7 +218,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20210812", NODEID );  
+  sprintf(buff, "%02x weatherino 20211009", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
 #endif
@@ -240,14 +239,16 @@ void setup() {
 #endif
   
 #ifdef RAIN
-  pinMode(RainInt, INPUT);
+  //  pinMode(RainInt, INPUT);
+    pinMode(RainInt, INPUT_PULLUP);
   // enable interrupt for pins
   pciSetup(RainInt);
   rain_raw = 0;
 #endif
   
 #ifdef WIND
-  pinMode(WindInt, INPUT);
+  //  pinMode(WindInt, INPUT);
+  pinMode(WindInt, INPUT_PULLUP);
   // enable interrupt for pins
   pciSetup(WindInt);
 
@@ -270,8 +271,6 @@ void setup() {
 void loop() {
   
   int batt_adc;
-  // int batt_adc_av;
-  //  int ref_v;
   float batt_v;
   uint8_t i;  
   uint16_t drn;   // 0..1023 adc reading
@@ -345,6 +344,10 @@ void loop() {
 	  sprintf(buff, "%02x rainfall=%smm", NODEID, buff2 );  
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
+	  // delay(50);
+	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	  radio.sleep();
+
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
@@ -390,7 +393,11 @@ void loop() {
 	  sprintf(buff, "%02x WindDrn=%s %d° spd=%s", NODEID, buff2, angle, buff3);
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	  delay(50);
+	  //	  delay(50);
+	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+
+	  radio.sleep();
+
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
@@ -412,7 +419,11 @@ void loop() {
 	  
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	  delay(50);
+	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	  //delay(50);
+	  radio.sleep();
+
+	  // delay(50);
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
@@ -445,16 +456,22 @@ void loop() {
 	      batt_v = Kv * batt_adc; 
 	      dtostrf(batt_v, 5, 2, buff2);
 #ifdef DEBUG
+#ifdef SERIAL_EN
 	      sprintf(buff, "%02x Batt_adc=%d", NODEID, batt_adc  );  
 	      Serial.println(buff);
+#endif
 #endif
 	      //	      sprintf(buff, "%02x Batt_ref_v=%d", NODEID, ref_v  );  
 	      // Serial.println(buff);
 	      
-	      sprintf(buff, "%02x Batt=%sV", NODEID, buff2  );  
 	      
 #ifdef RADIO
+	      sprintf(buff, "%02x Batt=%sV", NODEID, buff2  );  
 	      radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
+	      LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	      //delay(50);
+	      radio.sleep();
+
 #endif
 #ifdef SERIAL_EN
 	      Serial.println(buff);
@@ -468,17 +485,23 @@ void loop() {
     }
   
   // speed up the poll rate
-  for (i = 0; i < 10; i++)
-    {
-#ifdef RADIO
-      if (radio.receiveDone())
-	CheckForWirelessHEX(radio, flash, true);
-#endif
-      delay(200);
+  //for (i = 0; i < 10; i++)
+  //  {
+      // #ifdef RADIO
+      // if (radio.receiveDone())
+      //	CheckForWirelessHEX(radio, flash, true);
+  // #endif
+      // delay(200);
       
-      wdt_reset();
-    }
-  // LowPower.powerDown(sleepTime, ADC_OFF, BOD_OFF); //put microcontroller to sleep to save battery life
+      //wdt_reset();
+      // }
+  // t0 is millis(); Need that. Most low power modes don't run T0. measure ~4.5mA
+  // note radio in sleep gets current to ~9mA.   radio receiving is 16mA.
+  // idle goes from ~10 to ~4mA.
+  LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+  wdt_reset();
+  
+  // ints should work in powerSave
 }
 
 
@@ -656,7 +679,7 @@ ISR (PCINT2_vect) // handle pin change interrupt for D0 to D7 here
   
   // use only negedge for wind
   if ((last_wind_lvl == HIGH) && (wind_lvl == LOW))
-    wind_raw ++;
+    wind_raw++;
   
   last_wind_lvl = wind_lvl;
   
@@ -680,19 +703,19 @@ unsigned long  wind_count;
 
 unsigned long  get_wind_count (void)
 {
-#ifndef DEBUG
+  // #ifndef DEBUG
   unsigned long  wind_count;
-#endif
+  // #endif
   
-#ifdef DEBUG
-  wind_count += 1000;
-  return wind_count;
-#else
+  // #ifdef DEBUG
+  // wind_count += 1000;
+  // return wind_count;
+  // #else
   cli();
   wind_count = wind_raw;
   sei();
   return (wind_count);
-#endif
+  // #endif
 }
 
 unsigned int get_rain_count (void)

@@ -54,3 +54,69 @@ pins 2 + 3 are interrupts. Radio uses one of these.
 pin change interrupts are probably supported in sleep mode. 
 
 
+UPDATE Oct 2021
+Some time in Feb 2019 I split the weatherino stuff into 2 parts.
+A thing called weatherino, up high, running the rain and wind gauges.
+Its currently got  4.5AH 12V Lead acid gel cell, and a ~5W solar cell on the north facing slopey roof. And a switching reg to 3.3v
+
+A thing called weatherino_temperature, down low, in a stephensen screen, doing temperature and pressure and humidity.
+Its got a tiny 1W 6V solar cell, and an 18650 battery with a little linear charge controller.  The solar cell is unencapsulated, mounted on the east side of the solar screen, glued on  the vertical wall.   
+
+Split due to the lightning damage I have had. Don't want long wires.
+
+Over the last 2.5 years, the weatherino_temperature has been very reliable. I guess this is because its usually asleep, waking each 8 minutes to send temperature/humididity/pressure. I suspect its the lower power radio, CW.
+
+Over the last 2.5 years, the weatherino has NOT been very reliable. Regular battery flat issues.  I guess this is because its not usually asleep, always awake waiting for wind or temp interrupts.  Coupled with a few overcast days or a wet week or the like, it all stops.
+
+I need to
+* measure the actual run current as is
+* measure the standby current of the battery charger and the switcher.
+* see if I can put the thing into light sleep, so that pin change and internal timers both wake the cpu, and get a current point on that.
+* decide which way to go based on the above.
+
+Lets get some actual numbers!.
+
+put code into a spare moteino with a rfm69CW, reprogrammed to
+ # change address to 0x23
+ # change inputs on 6,7 to input_pullup
+ # attach pushbuttons to D6, D7
+
+* 26.8mA at 4.4v on psu with LDO onboard.
+* 9.8mA at 4.4v on psu with LDO onboard, after adding radio.sleep() after a transmission. since receiver is 16mA, makes sense..
+  That was an easy 16ma to gain!
+
+
+# add an idle call, 15ms. 
+* 4.4mA.   but is it working? I have DEBUG on, so should tx every 16s. All seems good. The trick is to keep timer0 running as it makes millis()_
+
+# should ensure all other IOs are driven to 0.
+
+
+
+# now check a switcher. it idles at 9.9mA from 13.2V.
+# at 50mA load, 23.9mA   vo=3.64
+# at 100mA  Iin=37.88mA, Vin=13.2 Vo=3.63
+# at 1000mA Iin=310mA   Vin=13.2 Vo=3.57   (will be some loss in the current meter reducing efficiency a tad)
+
+# the led on the board is red with 1K in series. assuming 1.6v, thats just under 2mA from the output.
+# so the switcher draws 130mW just idling from ~12V.  Thats my biggest single power consumption,
+#    and its off the battery, so always present, not off the solar.
+
+# finally, what does the solar reg draw with no solar there?
+# 12.2mA
+
+# so today I have 12.2 + 9.9 ma of supply losses, plus 26.8mA at 3V3 (7.3mA) for a total of 30mA at 12V
+# a good 4.5AH battery can run that 153 hours or 6.4 days
+# I suspect my battery might be at 30 % as it worked for 24 hrs from mid charge.
+
+# now, if I can get current to 4mA, then a single 18650 3AH seems a better all round solution.
+# Do I still have the 6V solar cell up there? And a TP4056  reg?   YES and YES
+# else .. whats involved in switching 12V solar to ~4.5 V?   Do I need MPPT, or just to not get stuck?
+# I'd be a tad worried with a standard switcher, likely to get stuck in constant current low voltage state I suspect.
+# While the TP4056 manages charge, it doesn't protect. possibly want a DW01A or similar to do undervoltage cutout.
+# Do the test boards I have do that? NO.
+
+# so buy a couple of  MPPT modules + some 4056+protection modules.
+The MPPT were $US13 for 2, the 4056 $8 for 5.   MPPT rated 12..28V in. adjustable. 4056 rated 4.5 .. . 5.5 in.
+
+MPPT out of china so will be a few weeks, fit when they get here.
