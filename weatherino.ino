@@ -1,13 +1,13 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-10 12:11:37 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-12 09:44:27 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
 
 
 #include <RFM69.h>         //get it here: https://www.github.com/lowpowerlab/rfm69
-#include <RFM69_ATC.h>     //get it here: https://www.github.com/lowpowerlab/rfm69
+// #include <RFM69_ATC.h>     //get it here: https://www.github.com/lowpowerlab/rfm69
 #include <SPIFlash.h>      //get it here: https://www.github.com/lowpowerlab/spiflash
 #include <SPI.h>           //included with Arduino IDE install (www.arduino.cc)
 #include <RFM69_OTA.h>     // allow OTA reprogramming
@@ -27,12 +27,12 @@
 //*********************************************************************************************
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
-// #define NODEID        3   //unique for each node on same network
-#define NODEID        0x23   //unique for each node on same network while doing current measurements
+#define NODEID        3   //unique for each node on same network
+// #define NODEID        0x23   //unique for each node on same network while doing current measurements
 #define GATEWAYID     1  //node Id of the receiver we are sending data to
 #define NETWORKID     100  //the same on all nodes that talk to each other including this node and the gateway
 #define FREQUENCY     RF69_915MHZ //others: RF69_433MHZ, RF69_868MHZ (this must match the RFM69 freq you have on your Moteino)
-// #define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!
+#define IS_RFM69HW_HCW  //uncomment only for RFM69HW/HCW! Leave out if you have RFM69W/CW!. Not optional!
 // #define USE_ENCRYP
 #define ENCRYPTKEY    "sampleEncryptKey" //exactly the same 16 characters/bytes on all nodes!
 #define SENDLOOPS    80 //default:80 //if no message was sent for this many sleep loops/cycles, then force a send
@@ -117,7 +117,7 @@ period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowP
 #define WIND
 #define BATTERY
 // speed up poll rates
-#define DEBUG
+// #define DEBUG
 
 
 // #define drn_cal 0
@@ -218,9 +218,10 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20211009", NODEID );  
+  sprintf(buff, "%02x weatherino 20211012", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
+  Serial.flush();
 #endif
 
 #ifdef RADIO    
@@ -315,6 +316,7 @@ void loop() {
 #ifdef SERIAL_EN
       sprintf(buff, "%02x east=%ld north=%ld this_gust=%d", NODEID,  total_easting, total_northing, this_gust_count );
       Serial.println(buff);
+      Serial.flush();
 #endif
 #endif      
       
@@ -351,6 +353,7 @@ void loop() {
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
+	  Serial.flush();
 #endif
 	  
 	  // *************** wind direction **************
@@ -377,6 +380,7 @@ void loop() {
 	  dtostrf(dist_kmh, 5, 1, buff3);
 	  sprintf(buff, "%02x dist=%s dist_kmh=%s", NODEID,  buff2, buff3 );
 	  Serial.println(buff);
+	  Serial.flush();
 #endif
 #endif      
 
@@ -401,6 +405,7 @@ void loop() {
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
+	  Serial.flush();
 #endif
 	  
 	  wdt_reset();
@@ -427,6 +432,7 @@ void loop() {
 #endif
 #ifdef SERIAL_EN
 	  Serial.println(buff);
+	  Serial.flush();
 #endif
 	  biggest_gust_count=0;
 	  gust_averages = GUST_AVERAGES;
@@ -457,8 +463,9 @@ void loop() {
 	      dtostrf(batt_v, 5, 2, buff2);
 #ifdef DEBUG
 #ifdef SERIAL_EN
-	      sprintf(buff, "%02x Batt_adc=%d", NODEID, batt_adc  );  
+	      sprintf(buff, "%02x Solar_adc=%d", NODEID, batt_adc  );  
 	      Serial.println(buff);
+	      Serial.flush();
 #endif
 #endif
 	      //	      sprintf(buff, "%02x Batt_ref_v=%d", NODEID, ref_v  );  
@@ -475,6 +482,7 @@ void loop() {
 #endif
 #ifdef SERIAL_EN
 	      Serial.println(buff);
+	      Serial.flush();
 #endif
 	      batteryloop_times = BATTERYLOOP_TIMES;
 	      

@@ -120,3 +120,13 @@ put code into a spare moteino with a rfm69CW, reprogrammed to
 The MPPT were $US13 for 2, the 4056 $8 for 5.   MPPT rated 12..28V in. adjustable. 4056 rated 4.5 .. . 5.5 in.
 
 MPPT out of china so will be a few weeks, fit when they get here.
+
+# Hmmm, 12 Oct 2021.  The LeadAcid battery can't hold up overnight now. Wet and overcast yesterday, the
+ cheap commercial charger thing load shed to protect the battery in the early evening.
+ bite the bullet, reflash the moteino with current best code, add the TP4056 I have,
+ add a Siemens 18650 3000maH battery, connect to the 6V solar on the roof.
+ Checked S/C current at 8am (summertime, so early) heavy overcast + light rain, got 40mA.
+ So hopefully that works till the other board gets here.
+ Currently logging solar input voltage (eg was 12V boattery) so should add both solar + battery monitoring,
+ and rescale to something a little more appropriate.
+ 
