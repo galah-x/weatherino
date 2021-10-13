@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-12 09:44:27 john"';
+// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-13 13:52:47 john"';
 
 // $ grabserial -b 19200 -d /dev/ttyUSB1 | ts [%y%m%d%H%M%S]
 
@@ -22,13 +22,17 @@
 
 
 
-
+// #define DEBUG
 
 //*********************************************************************************************
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
+#ifdef DEBUG 
+#define NODEID        0x23   //don't screw witch grafana when testing
+#else 
 #define NODEID        3   //unique for each node on same network
-// #define NODEID        0x23   //unique for each node on same network while doing current measurements
+#endif 
+
 #define GATEWAYID     1  //node Id of the receiver we are sending data to
 #define NETWORKID     100  //the same on all nodes that talk to each other including this node and the gateway
 #define FREQUENCY     RF69_915MHZ //others: RF69_433MHZ, RF69_868MHZ (this must match the RFM69 freq you have on your Moteino)
@@ -117,7 +121,7 @@ period_t sleepTime = SLEEP_2S;    //period_t is an enum type defined in the LowP
 #define WIND
 #define BATTERY
 // speed up poll rates
-// #define DEBUG
+
 
 
 // #define drn_cal 0
@@ -157,7 +161,8 @@ const uint8_t BATTERYLOOP_TIMES=45;
 #endif
 
 // const float Kv = 5.70 * 3.3 / 1024; // yields 11.82 from 12.22
-const float Kv = (12.22 / 11.82 ) *  5.70 * 3.3 / 1024; // yields 11.82 from 12.22
+//const float Kv = (12.22 / 11.82 ) *  5.70 * 3.3 / 1024; // yields 11.82 from 12.22
+const float Kv =    ( 4.657 / 4.647 ) * (1.499 / 1.0)  * 3.3 / 1024.0; // 499k and 1M, but that got 4.647 with 4.657 measured 
 
 
 // due to a lightning strike, separating weatherino into 2 parts. This part is physically high
@@ -218,7 +223,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20211012", NODEID );  
+  sprintf(buff, "%02x weatherino 20211013", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
   Serial.flush();
@@ -240,16 +245,16 @@ void setup() {
 #endif
   
 #ifdef RAIN
-  //  pinMode(RainInt, INPUT);
-    pinMode(RainInt, INPUT_PULLUP);
+   pinMode(RainInt, INPUT);
+   //  pinMode(RainInt, INPUT_PULLUP);  Input pullup is a bit big for the protection series R on weatherino
   // enable interrupt for pins
   pciSetup(RainInt);
   rain_raw = 0;
 #endif
   
 #ifdef WIND
-  //  pinMode(WindInt, INPUT);
-  pinMode(WindInt, INPUT_PULLUP);
+  pinMode(WindInt, INPUT);
+  // pinMode(WindInt, INPUT_PULLUP);   Input pullup is a bit big for the protection series R on weatherino
   // enable interrupt for pins
   pciSetup(WindInt);
 
@@ -339,16 +344,20 @@ void loop() {
 	  //	  float r = get_rain_count() / 5.0;  // 0.2mm per blip on int pin
 	  // lets rewrite as this, both to remove the division and to improve readability
 	  //	  float r = get_rain_count() * 0.20;  // 0.2mm per blip on int pin according to spec
- 	  // now lets take into account the cal I did a while back. Its getting old.
+ 	  // now lets take into account the cal I did a while back. Rain collecter is getting old.
 	  float r = get_rain_count() * 0.25;  // 0.25mm per blip measured
 	  dtostrf(r, 5, 1, buff2);
-	  
 	  sprintf(buff, "%02x rainfall=%smm", NODEID, buff2 );  
+
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	  // delay(50);
-	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
 	  radio.sleep();
+	  // was
+	  // delay(50);
+	  for (i=0; i<10 ; i++)
+	    {
+	      LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	    }
 
 #endif
 #ifdef SERIAL_EN
@@ -372,9 +381,6 @@ void loop() {
 	  
 #ifdef DEBUG
 #ifdef SERIAL_EN
-	  //	  dtostrf(len_squared, 18, 1, buff2);
-	  // sprintf(buff, "%02x len_sq=%s", NODEID,  buff2 );
-	  // Serial.println(buff);
 	  
 	  dtostrf(dist, 5, 1, buff2);
 	  dtostrf(dist_kmh, 5, 1, buff3);
@@ -397,10 +403,13 @@ void loop() {
 	  sprintf(buff, "%02x WindDrn=%s %d° spd=%s", NODEID, buff2, angle, buff3);
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	  //	  delay(50);
-	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
-
 	  radio.sleep();
+	  //	  delay(50);
+	  for (i=0 ; i<10 ; i++)
+	    {
+	      LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	    }
+	  
 
 #endif
 #ifdef SERIAL_EN
@@ -415,7 +424,7 @@ void loop() {
 	  // gust count is max revs in 8.388 seconds
 	  // where v[mph] = 2.25 * count / T
 	  // or v[kph]    = 2.25 * 1.609 * count / T
-	  // or v[kph]    = 3.62 * count / T
+	  // or v[kph]    = 3.62 * count / T (in milliseconds) 
 	  
 	  biggest_gust = 3620.0 * (float) biggest_gust_count / (float) gust_period; 
 	  
@@ -424,9 +433,12 @@ void loop() {
 	  
 #ifdef RADIO
 	  radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	  LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
-	  //delay(50);
 	  radio.sleep();
+	  for (i=0; i<10; i++)
+	    {
+	      LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	    }
+	  //delay(50);
 
 	  // delay(50);
 #endif
@@ -460,7 +472,7 @@ void loop() {
 	      
 	      //batt_v = 1.476 * batt_adc / ref_v; 
 	      batt_v = Kv * batt_adc; 
-	      dtostrf(batt_v, 5, 2, buff2);
+	      dtostrf(batt_v, 5, 3, buff2);
 #ifdef DEBUG
 #ifdef SERIAL_EN
 	      sprintf(buff, "%02x Solar_adc=%d", NODEID, batt_adc  );  
@@ -473,9 +485,12 @@ void loop() {
 	      
 	      
 #ifdef RADIO
-	      sprintf(buff, "%02x Batt=%sV", NODEID, buff2  );  
+	      sprintf(buff, "%02x Batt=%sV", NODEID, buff2  );
 	      radio.sendWithRetry(GATEWAYID, buff, strlen(buff));
-	      LowPower.idle(SLEEP_60MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+	      for (i=0; i<10; i++)
+		{
+		  LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
+		}
 	      //delay(50);
 	      radio.sleep();
 
@@ -492,18 +507,7 @@ void loop() {
 	}
     }
   
-  // speed up the poll rate
-  //for (i = 0; i < 10; i++)
-  //  {
-      // #ifdef RADIO
-      // if (radio.receiveDone())
-      //	CheckForWirelessHEX(radio, flash, true);
-  // #endif
-      // delay(200);
-      
-      //wdt_reset();
-      // }
-  // t0 is millis(); Need that. Most low power modes don't run T0. measure ~4.5mA
+  // t0 generates millis(); Need millis() to work. Most low power modes don't run T0. measure ~4.5mA
   // note radio in sleep gets current to ~9mA.   radio receiving is 16mA.
   // idle goes from ~10 to ~4mA.
   LowPower.idle(SLEEP_15MS, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_ON, SPI_OFF, USART0_OFF, TWI_OFF); //put microcontroller to powersave mode to save battery life.
@@ -705,25 +709,14 @@ ISR (PCINT2_vect) // handle pin change interrupt for D0 to D7 here
   // digitalWrite(13,lvl);
 }
 
-#ifdef DEBUG
-unsigned long  wind_count;
-#endif
 
 unsigned long  get_wind_count (void)
 {
-  // #ifndef DEBUG
   unsigned long  wind_count;
-  // #endif
-  
-  // #ifdef DEBUG
-  // wind_count += 1000;
-  // return wind_count;
-  // #else
   cli();
   wind_count = wind_raw;
   sei();
   return (wind_count);
-  // #endif
 }
 
 unsigned int get_rain_count (void)

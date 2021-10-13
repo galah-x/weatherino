@@ -123,10 +123,35 @@ MPPT out of china so will be a few weeks, fit when they get here.
 
 # Hmmm, 12 Oct 2021.  The LeadAcid battery can't hold up overnight now. Wet and overcast yesterday, the
  cheap commercial charger thing load shed to protect the battery in the early evening.
- bite the bullet, reflash the moteino with current best code, add the TP4056 I have,
+ Shame it didn't load shed itself.
+ So bite the bullet, reflash the moteino with current best code, add the TP4056 I have,
  add a Siemens 18650 3000maH battery, connect to the 6V solar on the roof.
- Checked S/C current at 8am (summertime, so early) heavy overcast + light rain, got 40mA.
- So hopefully that works till the other board gets here.
+ Checked S/C current onthe 6V solar cell at 8am (summertime, so early) heavy overcast + light rain, got 40mA.
+ So hopefully that will work till the other board gets here. Perhaps longer.
  Currently logging solar input voltage (eg was 12V boattery) so should add both solar + battery monitoring,
  and rescale to something a little more appropriate.
- 
+
+# 13 Oct 2021
+read a steady count of 0 for rainfall and for windspeed yesterday + overnight.   Plastic rain gauge said 20mm overnight, its raining medium, but wind is light.  So Ieither I have it connected up wrong or its not counting the pulses. Which are likely narrower than the mechanical pushbuttons I tested with.
+
+Lets tweak the code to change the address back to a test value, (so I don't crap in the logs)
+and to change back to a debug update rate. Don't bother with serial.
+Lets then test with a sig gen into rain. See how sensitive to PW it is.
+Code comments suggested the wind int is a 1ms pulse. Rain is a reed switch, so has to be 10s of ms you would think. 
+
+with 1hz 99% (ie 1% low) wave into rain int, rain count measures 0.
+Still 0 at 90%  ??
+
+- investigating input pin with scope, there is series R protecting the inputs, not compatible with input_pullup. So remove the pullup from the code.
+ now with the 90% high time, 1 hz in, rainfall reads 71.3mm at 12:40:20 started at 12:35:34
+ so in 240+26+20 = 286 secs got 71.3/0.25 = 285.6 ints.     Thats looking ok!
+
+change to 99% high   start at 12:44:22     end  12:49:24  reads 75.5   period = 302s count=75.5/.25=302
+ so its good at 10ms too.
+
+how about 99.9% on rain? (about wind int width)   start 12:52:39   end at 13:03:33 163.5mm
+period = 656 s counts = 163.5/0.25= 654
+happy with that.
+So turn off debug and put back onthe roof!
+Hold on - lets add a batt voltage check! Or maybe just change from Vin to Vbatt, ie output of TP4056.
+was ~4M and 1M to gnd, now 499k in series. 
