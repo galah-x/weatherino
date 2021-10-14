@@ -1,17 +1,13 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino temp humidity pressure rainfall wind for moteino Time-stamp: "2021-10-14 11:34:55 john"';
+// my $ver =  'weatherino   rainfall + wind for moteino Time-stamp: "2021-10-14 11:46:09 john"';
 
 
 #include <RFM69.h>         //get it here: https://www.github.com/lowpowerlab/rfm69
 #include <SPI.h>           //included with Arduino IDE install (www.arduino.cc)
-
-// try and get the idle function
-#define __AVR_ATmega328P__
-#define __AVR__
 #include <LowPower.h>      //get library from: https://github.com/lowpowerlab/lowpower
                            //writeup here: http://www.rocketscream.com/blog/2011/07/04/lightweight-low-power-arduino-library/
-#include <avr/wdt.h> // watchdog
+#include <avr/wdt.h>       // watchdog
 
 
 // define this to change network address and loop poll time for testing.
@@ -49,16 +45,17 @@
 // calibration coefficient for wind drn.    ADC returns 0 .. 1023
 
 // Windvane.
-// magnetic compass from in front of the vane indicated it was at 200 degrees
+// Mount the windvane on the mast so it points in fixed direction, and measure that. 
+// Use a magnetic compass from in front of the vane indicated it was at 200 degrees
 // subtracting 180 implies it was pointed at 20 degrees magnetic
-// local declination at -31.45 degrees 151.62 elevation 950 is
+// local declination at 31.45 degrees S 151.62 E elevation 950 m is according to 
 // http://www.ga.gov.au/oracle/geomag/agrfform.jsp
 // Requested: Latitude -31o 27' 00", Longitude 151o 37' 00", Elevation .95 km, Date 2015/01/1 
 // Calculated: Latitude -31.4500o, Longitude +151.6167o, Elevation 0.95 km, Epoch 2015.0000
 // Magnetic Field Components
 // D = 11.807 deg
 
-// from wikipedia Declination Magnetic
+// and from wikipedia Declination Magnetic
 // D, the magnetic declination (sometimes called the magnetic variation), is the angle between the horizontal
 // component of the magnetic field and true north. It is positive when the compass points east of true north,
 // and negative when the compass points west of true north.
