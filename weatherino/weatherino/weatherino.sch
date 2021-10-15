@@ -1,5 +1,5 @@
 EESchema Schematic File Version 4
-EELAYER 26 0
+EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
 encoding utf-8
@@ -75,8 +75,6 @@ Wire Wire Line
 Wire Wire Line
 	4700 3000 3900 3000
 Wire Wire Line
-	7150 4000 6550 4000
-Wire Wire Line
 	4700 3300 4700 4000
 Connection ~ 4700 4000
 Wire Wire Line
@@ -89,65 +87,32 @@ Wire Wire Line
 	3100 3300 3100 4000
 Connection ~ 3900 4000
 Wire Wire Line
-	3100 4000 1100 4000
+	3100 4000 2000 4000
 Wire Wire Line
 	1100 4000 1100 3400
 Connection ~ 3100 4000
 Wire Wire Line
 	7150 3900 5850 3900
 Connection ~ 4700 3000
-Text Notes 4750 3400 0    50   ~ 0
-3.7V 1000mAH LiPo
+Text Notes 4700 3500 0    50   ~ 0
+3.7V 3000mAH LiPo \n18650 Samsung\nPink
 $Comp
-L swinggate_sch:SHT31_BD U3
-U 1 1 5C68EA9F
-P 6600 1600
-F 0 "U3" H 6550 2150 79  0000 L CNN
-F 1 "SHT31_BD" H 6500 2000 79  0000 L CNN
-F 2 "" H 6600 1600 79  0001 C CNN
-F 3 "" H 6600 1600 79  0001 C CNN
-	1    6600 1600
-	1    0    0    -1  
-$EndComp
-$Comp
-L swinggate_sch:BMP280_BD U2
-U 1 1 5C68EC67
-P 5150 1600
-F 0 "U2" H 5000 2150 79  0000 L CNN
-F 1 "BMP280_BD" H 4950 2000 79  0000 L CNN
-F 2 "" H 5150 1600 79  0001 C CNN
-F 3 "" H 5150 1600 79  0001 C CNN
-	1    5150 1600
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:R R4
+L Device:R R6
 U 1 1 5C68ED0B
-P 7750 2250
-F 0 "R4" H 7820 2296 50  0000 L CNN
-F 1 "4K7" H 7820 2205 50  0000 L CNN
-F 2 "" V 7680 2250 50  0001 C CNN
-F 3 "~" H 7750 2250 50  0001 C CNN
-	1    7750 2250
-	1    0    0    -1  
-$EndComp
-$Comp
-L Device:R R3
-U 1 1 5C68EDCB
-P 7400 2250
-F 0 "R3" H 7330 2204 50  0000 R CNN
-F 1 "4K7" H 7330 2295 50  0000 R CNN
-F 2 "" V 7330 2250 50  0001 C CNN
-F 3 "~" H 7400 2250 50  0001 C CNN
-	1    7400 2250
-	-1   0    0    1   
+P 4100 5800
+F 0 "R6" V 4170 5846 50  0000 L CNN
+F 1 "47K" V 4284 5755 50  0000 L CNN
+F 2 "" V 4030 5800 50  0001 C CNN
+F 3 "~" H 4100 5800 50  0001 C CNN
+	1    4100 5800
+	0    -1   -1   0   
 $EndComp
 $Comp
 L Device:R R1
 U 1 1 5C68EDFB
 P 6200 3500
 F 0 "R1" V 5993 3500 50  0000 C CNN
-F 1 "390K" V 6084 3500 50  0000 C CNN
+F 1 "499K" V 6084 3500 50  0000 C CNN
 F 2 "" V 6130 3500 50  0001 C CNN
 F 3 "~" H 6200 3500 50  0001 C CNN
 	1    6200 3500
@@ -156,18 +121,16 @@ $EndComp
 $Comp
 L Device:R R2
 U 1 1 5C68EE23
-P 6350 2950
-F 0 "R2" H 6280 2904 50  0000 R CNN
-F 1 "1M" H 6280 2995 50  0000 R CNN
-F 2 "" V 6280 2950 50  0001 C CNN
-F 3 "~" H 6350 2950 50  0001 C CNN
-	1    6350 2950
+P 6500 3650
+F 0 "R2" H 6430 3604 50  0000 R CNN
+F 1 "1M" H 6430 3695 50  0000 R CNN
+F 2 "" V 6430 3650 50  0001 C CNN
+F 3 "~" H 6500 3650 50  0001 C CNN
+	1    6500 3650
 	-1   0    0    1   
 $EndComp
 Wire Wire Line
-	7150 2800 6350 2800
-Wire Wire Line
-	6350 3500 7150 3500
+	6350 3500 6500 3500
 Wire Wire Line
 	5850 3000 5850 3500
 Wire Wire Line
@@ -176,134 +139,237 @@ Connection ~ 5850 3500
 Wire Wire Line
 	5850 3500 5850 3900
 Wire Wire Line
-	6350 3100 6350 3500
-Connection ~ 6350 3500
-Wire Wire Line
-	5200 1900 5200 4000
-Connection ~ 5200 4000
-Wire Wire Line
-	5200 4000 4700 4000
-Wire Wire Line
 	7150 3800 6850 3800
-Wire Wire Line
-	6850 3800 6850 4450
-Wire Wire Line
-	6850 4450 8850 4450
-Wire Wire Line
-	8850 4450 8850 2000
-Wire Wire Line
-	8850 2000 7750 2000
-Wire Wire Line
-	7750 2000 7750 2100
-Wire Wire Line
-	7750 2000 7400 2000
-Wire Wire Line
-	7400 2000 7400 2100
-Connection ~ 7750 2000
-Wire Wire Line
-	6450 2000 6450 1900
-Connection ~ 7400 2000
-Wire Wire Line
-	6550 1900 6550 4000
-Connection ~ 6550 4000
-Wire Wire Line
-	6550 4000 5200 4000
-Wire Wire Line
-	7150 3300 6700 3300
-Wire Wire Line
-	6700 3300 6700 2600
-Wire Wire Line
-	6700 2600 6650 2600
-Wire Wire Line
-	6700 2600 7750 2600
-Wire Wire Line
-	7750 2600 7750 2400
-Connection ~ 6700 2600
-Wire Wire Line
-	6650 1900 6650 2450
-Wire Wire Line
-	7150 3200 6750 3200
-Wire Wire Line
-	6750 3200 6750 2500
-Wire Wire Line
-	7400 2400 7400 2500
-Wire Wire Line
-	7400 2500 6750 2500
-Connection ~ 6750 2500
-Wire Wire Line
-	6750 2500 6750 2300
-Wire Wire Line
-	5500 1900 5500 2300
-Wire Wire Line
-	5500 2300 6750 2300
-Connection ~ 6750 2300
-Wire Wire Line
-	6750 2300 6750 1900
-Wire Wire Line
-	5300 1900 5300 2450
-Wire Wire Line
-	5300 2450 6650 2450
-Connection ~ 6650 2450
-Wire Wire Line
-	6650 2450 6650 2600
-Text Label 5900 2300 0    50   ~ 0
-SDA
-Text Label 5900 2450 0    50   ~ 0
-SCL
-Text Label 8050 2000 0    50   ~ 0
+Text Label 5600 4600 0    50   ~ 0
 3V3
 Text Label 5400 3000 0    50   ~ 0
 VBATT
 Text Label 5400 4000 0    50   ~ 0
 GND
-NoConn ~ 5600 1900
-NoConn ~ 5400 1900
-NoConn ~ 6850 1900
-NoConn ~ 6950 1900
-NoConn ~ 7050 1900
-NoConn ~ 8250 2800
-NoConn ~ 8250 2900
-NoConn ~ 8250 3000
-NoConn ~ 8250 3100
-NoConn ~ 8250 3200
-NoConn ~ 8250 3300
-NoConn ~ 8250 4000
-NoConn ~ 8250 3900
-NoConn ~ 8250 3800
-NoConn ~ 8250 3700
-NoConn ~ 8250 3600
-NoConn ~ 8250 3500
-NoConn ~ 8250 3400
-NoConn ~ 7150 3700
-NoConn ~ 7150 3600
-NoConn ~ 7150 3400
-NoConn ~ 7150 3100
-NoConn ~ 7150 3000
-NoConn ~ 7150 2900
 Text Notes 8000 7500 0    79   ~ 0
-WEATHERINO - A - Temperature/Humidity/Pressure
+WEATHERINO - Rain, wind drn, wind speed.
 Text Notes 8650 7650 0    50   ~ 0
-17 Feb 2019
+15 Oct 2021
 Text Notes 10750 7650 0    50   ~ 0
 1
-Text Notes 9100 2350 0    50   ~ 0
-Note R3,R4, I2C pullups,\nare on lugin boards so not fitted
 Text Notes 8050 4350 0    50   ~ 0
-CW board used
+HCW board used
 Wire Wire Line
 	4700 3000 5850 3000
-Wire Wire Line
-	5100 2000 5100 1900
-Wire Wire Line
-	5100 2000 6450 2000
-Connection ~ 6450 2000
-Wire Wire Line
-	6450 2000 7400 2000
-Wire Wire Line
-	5100 2000 5000 2000
-Wire Wire Line
-	5000 2000 5000 1900
-Connection ~ 5100 2000
 Text Notes 1000 2600 0    50   ~ 0
 D1 helps reduce SC voltage to well within \n8V input range of regulator
+Wire Wire Line
+	4700 4000 6500 4000
+Wire Wire Line
+	6500 3800 6500 4000
+Connection ~ 6500 4000
+Wire Wire Line
+	6500 4000 7150 4000
+$Comp
+L Connector:Conn_01x02_Male J2
+U 1 1 616B0CA5
+P 2150 6650
+F 0 "J2" H 2258 6831 50  0000 C CNN
+F 1 "Conn_01x02_Male" H 2258 6740 50  0000 C CNN
+F 2 "" H 2150 6650 50  0001 C CNN
+F 3 "~" H 2150 6650 50  0001 C CNN
+	1    2150 6650
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:6P4C J1
+U 1 1 616B1BBC
+P 1950 5800
+F 0 "J1" H 2007 6367 50  0000 C CNN
+F 1 "6P4C" H 2007 6276 50  0000 C CNN
+F 2 "" V 1950 5825 50  0001 C CNN
+F 3 "~" V 1950 5825 50  0001 C CNN
+	1    1950 5800
+	1    0    0    -1  
+$EndComp
+Text Notes 750  5250 0    50   ~ 0
+Davis Instruments\nAnemometer
+Text Notes 800  6700 0    50   ~ 0
+Davis Instruments \nTipping bucket\nRain gauge
+Text Notes 800  7000 0    50   ~ 0
+Old, recently calibrated\nto 0.25mm / tip
+Wire Wire Line
+	2350 5900 2850 5900
+Wire Wire Line
+	2850 5900 2850 4600
+Wire Wire Line
+	2850 4600 3350 4600
+Text Notes 700  5850 0    50   ~ 0
+Power Yellow 2/6
+Text Notes 700  5750 0    50   ~ 0
+Green Wind Drn 3/6
+Text Notes 700  5650 0    50   ~ 0
+Red Ground 4/6
+Text Notes 700  5550 0    50   ~ 0
+Black Wind Speed 5/6
+Text Notes 700  5450 0    50   ~ 0
+NC 6/6
+Text Notes 700  5950 0    50   ~ 0
+NC 1/6
+$Comp
+L Device:R R5
+U 1 1 616C92A8
+P 4100 5350
+F 0 "R5" V 4170 5396 50  0000 L CNN
+F 1 "47K" V 4284 5305 50  0000 L CNN
+F 2 "" V 4030 5350 50  0001 C CNN
+F 3 "~" H 4100 5350 50  0001 C CNN
+	1    4100 5350
+	0    -1   -1   0   
+$EndComp
+$Comp
+L Device:R R4
+U 1 1 616CC4FE
+P 3350 4950
+F 0 "R4" H 3280 4904 50  0000 R CNN
+F 1 "10K" H 3280 4995 50  0000 R CNN
+F 2 "" V 3280 4950 50  0001 C CNN
+F 3 "~" H 3350 4950 50  0001 C CNN
+	1    3350 4950
+	-1   0    0    1   
+$EndComp
+$Comp
+L Device:R R3
+U 1 1 616CDA02
+P 2950 6400
+F 0 "R3" H 2880 6354 50  0000 R CNN
+F 1 "10K" H 2880 6445 50  0000 R CNN
+F 2 "" V 2880 6400 50  0001 C CNN
+F 3 "~" H 2950 6400 50  0001 C CNN
+	1    2950 6400
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	2950 6550 2950 6650
+$Comp
+L Device:R R7
+U 1 1 616CE8C0
+P 4100 6650
+F 0 "R7" V 4170 6696 50  0000 L CNN
+F 1 "47K" V 4284 6605 50  0000 L CNN
+F 2 "" V 4030 6650 50  0001 C CNN
+F 3 "~" H 4100 6650 50  0001 C CNN
+	1    4100 6650
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	2950 6250 2950 5900
+Wire Wire Line
+	2950 5900 2850 5900
+Connection ~ 2850 5900
+Wire Wire Line
+	3350 4800 3350 4600
+Connection ~ 3350 4600
+Wire Wire Line
+	3350 5350 3950 5350
+Wire Wire Line
+	3350 5100 3350 5350
+Wire Wire Line
+	2350 5600 3350 5600
+Wire Wire Line
+	3350 5600 3350 5350
+Connection ~ 3350 5350
+Wire Wire Line
+	2350 5800 3950 5800
+Wire Wire Line
+	2350 6650 2950 6650
+Wire Wire Line
+	2950 6650 3950 6650
+Connection ~ 2950 6650
+Wire Wire Line
+	6850 3800 6850 4600
+Wire Wire Line
+	3350 4600 6850 4600
+Wire Wire Line
+	2350 6750 2650 6750
+Wire Wire Line
+	2650 6750 2650 7150
+Wire Wire Line
+	2350 5700 2600 5700
+Wire Wire Line
+	2600 5700 2600 6200
+Wire Wire Line
+	2000 4000 2000 4250
+Connection ~ 2000 4000
+Wire Wire Line
+	2000 4000 1100 4000
+$Comp
+L power:Earth #PWR0101
+U 1 1 616D9AB5
+P 2000 4250
+F 0 "#PWR0101" H 2000 4000 50  0001 C CNN
+F 1 "Earth" H 2000 4100 50  0001 C CNN
+F 2 "" H 2000 4250 50  0001 C CNN
+F 3 "~" H 2000 4250 50  0001 C CNN
+	1    2000 4250
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:Earth #PWR0102
+U 1 1 616DA620
+P 2600 6200
+F 0 "#PWR0102" H 2600 5950 50  0001 C CNN
+F 1 "Earth" H 2600 6050 50  0001 C CNN
+F 2 "" H 2600 6200 50  0001 C CNN
+F 3 "~" H 2600 6200 50  0001 C CNN
+	1    2600 6200
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:Earth #PWR0103
+U 1 1 616DC3A2
+P 2650 7150
+F 0 "#PWR0103" H 2650 6900 50  0001 C CNN
+F 1 "Earth" H 2650 7000 50  0001 C CNN
+F 2 "" H 2650 7150 50  0001 C CNN
+F 3 "~" H 2650 7150 50  0001 C CNN
+	1    2650 7150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4250 5350 9150 5350
+Wire Wire Line
+	7150 3400 6500 3400
+Wire Wire Line
+	6500 3400 6500 3500
+Connection ~ 6500 3500
+Wire Wire Line
+	7000 3500 7150 3500
+Wire Wire Line
+	4250 5800 7000 5800
+Wire Wire Line
+	6500 6650 6500 6150
+Wire Wire Line
+	6500 6150 9600 6150
+Wire Wire Line
+	9600 6150 9600 3500
+Wire Wire Line
+	4250 6650 6500 6650
+Wire Wire Line
+	8250 3500 9600 3500
+Wire Wire Line
+	8250 3400 9150 3400
+Wire Wire Line
+	9150 3400 9150 5350
+Wire Wire Line
+	7000 3500 7000 5800
+Text Notes 3150 2250 0    50   ~ 0
+This is a 4056 charge controller board\nthat implements current limit and overvolt \nprotection.  I should have got one \nthat did undervoltage too. \nIn which case load and battery are on separate \noutput pin pairs
+Text Notes 4350 2750 0    50   ~ 0
+Battery is in an 18650 socket
+Text Notes 7100 2400 0    50   ~ 0
+Moteino board also has an antenna soldered on. Its 915MHz, 82mm
+Text Notes 3500 7650 0    50   ~ 0
+Note: This is built on perf board, with partially pinned socket pins for the Moteino\nResistors are 0805 soldered on the back. Could be thru hole I guess.\nU1 is an ebay module, 4 wires a bit above the mounting perfboard.\nConnectors (including solar) soldered to the board.  
+Text Notes 4600 6050 0    50   ~ 0
+Series resistors here are mostly to protect the Mteino in the event \nof lightning  nearby,   but not too close.
+Text Notes 500  7550 0    50   ~ 0
+Keep external wires shortish. About 5m in my case.
+Text Notes 6100 2000 0    50   ~ 0
+A moteino is an arduino board wiith a RFM69 915MHz radio module soldered on the back.  \nI see a couple of hundred metres around the farm from the RFM69\nAnd up to 5 Km for the RFM95 LoRa guys at  slow baud. 
 $EndSCHEMATC
