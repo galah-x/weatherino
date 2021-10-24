@@ -1,6 +1,6 @@
 //    -*- Mode: c++     -*-
 // emacs automagically updates the timestamp field on save
-// my $ver =  'weatherino   rainfall + wind for moteino Time-stamp: "2021-10-14 11:46:09 john"';
+// my $ver =  'weatherino   rainfall + wind for moteino Time-stamp: "2021-10-24 14:56:06 john"';
 
 
 #include <RFM69.h>         //get it here: https://www.github.com/lowpowerlab/rfm69
@@ -40,6 +40,7 @@
 #define BATT_ADC_CH     6
 #define RainInt         6
 #define WindInt         7
+#define RainIntHyst     5
 //
 
 // calibration coefficient for wind drn.    ADC returns 0 .. 1023
@@ -192,6 +193,25 @@ const uint8_t sin_slope[interp_points] = {61, 59, 54, 47, 39, 29, 18, 6};
 // classic arduino setup routine
 
 void setup() {
+
+  // lets define all unused IO as output 0.
+  pinMode(3, OUTPUT);
+  digitalWrite(3, LOW);
+  pinMode(4, OUTPUT);
+  digitalWrite(4, LOW);
+  pinMode(LED, OUTPUT);
+  digitalWrite(LED, LOW);
+  pinMode(A0, OUTPUT);
+  digitalWrite(A0, LOW);
+  pinMode(A1, OUTPUT);
+  digitalWrite(A1, LOW);
+  pinMode(A2, OUTPUT);
+  digitalWrite(A2, LOW);
+  pinMode(A3, OUTPUT);
+  digitalWrite(A3, LOW);
+  pinMode(A4, OUTPUT);
+  digitalWrite(A4, LOW);
+
   
 #ifdef RADIO
   radio.initialize(FREQUENCY,NODEID,NETWORKID);
@@ -209,7 +229,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
 #endif
   
-  sprintf(buff, "%02x weatherino 20211013", NODEID );  
+  sprintf(buff, "%02x weatherino 20211024", NODEID );  
 #ifdef SERIAL_EN
   Serial.println(buff);
   Serial.flush();
@@ -221,7 +241,6 @@ void setup() {
 #endif
   
   analogReference(DEFAULT);
-  
   gust_averages = GUST_AVERAGES;
   batteryloop_times = 0;
     
@@ -231,6 +250,8 @@ void setup() {
   
 #ifdef RAIN
    pinMode(RainInt, INPUT);
+   pinMode(RainIntHyst, OUTPUT);
+   digitalWrite(RainIntHyst, digitalRead(RainInt));
    //  pinMode(RainInt, INPUT_PULLUP);  Input pullup is too big for the protection series R on weatherino
   // enable interrupt for pins
   pciSetup(RainInt);
@@ -588,6 +609,12 @@ void pciSetup(byte pin)
 // It would allow much slower sensing.    Whatever, if I can do a wind anemometer I can do rain. 
 // Guess there are power considerations too, this way allows more wetting current.
 
+// I note typical rain int falling  edges bounce several times over ~200us with bounce pulse often 100us wide.
+// The pulse is ~50ms wide exercised by finger. didn't use water.
+// the posedge is cleaner, but the negedge includes posedges so that doesn't help a lot.
+// perhaps a LPF of say 2-5ms would help observed multiple counts, at least once during a thunderstorm and once not sure. 
+
+
 // The wind int seems not to need a debounce. Its a 1ms pulse, seems cleanly generated.
 // Both use the negedge only here.
 
@@ -597,8 +624,12 @@ ISR (PCINT2_vect) // handle pin change interrupt for D0 to D7 here
   static byte last_wind_lvl = 1;
   static byte last_rain_lvl = 1;
   unsigned long interrupt_time = millis();
+
   byte wind_lvl = digitalRead(WindInt);
+
   byte rain_lvl = digitalRead(RainInt);
+  // update the wind hysteresis whenever entering this ISR
+  digitalWrite(RainIntHyst, rain_lvl);
   
   // use only negedge for wind
   if ((last_wind_lvl == HIGH) && (wind_lvl == LOW))
@@ -609,7 +640,7 @@ ISR (PCINT2_vect) // handle pin change interrupt for D0 to D7 here
   // only use negedge for rain, 
   if ((last_rain_lvl == HIGH) && (rain_lvl == LOW))
     // and debounce it 50ms.  Meaning ignore any negedge transitions for 50ms after a counted transition.  
-      if (abs(interrupt_time - last_used_rain_interrupt_time) > 50)
+    if ((interrupt_time - last_used_rain_interrupt_time) >  50UL)  // 50 ms unsigned long
 	// apply 50ms debounce on rain transition.
 	// the abs() is to cope with wrap around of millis. Doesn't happen often, but I'd lose a lot when it does finally wrap. 
 	{
